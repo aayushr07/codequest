@@ -83,7 +83,7 @@ export default function MCQHomePage() {
 
   const handleStartTest = () => {
     if (user) {
-      window.location.href = "/mcq-test";
+      window.location.href = "/mcq-round";
     } else {
       window.location.href = "/login";
     }
