@@ -3,21 +3,22 @@ import { useState, useEffect } from "react";
 import { auth } from "@/firebase/firebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
 import { mcqQuestions } from "@/data/mcqQuestions";
-import { 
-  Trophy, 
-  Clock, 
-  User, 
-  CheckCircle, 
-  LogOut, 
-  ChevronLeft, 
-  ChevronRight, 
-  Flag, 
+import {
+  Trophy,
+  Clock,
+  User,
+  CheckCircle,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Flag,
   Eye,
   AlertTriangle,
   BookOpen,
   Target,
   Users,
   Star,
+  Check,
   TrendingUp
 } from "lucide-react";
 
@@ -32,7 +33,7 @@ export default function MCQRoundPage() {
   const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showQuestionPalette, setShowQuestionPalette] = useState(false);
-  
+
   // Team-related states
   const [userTeam, setUserTeam] = useState(null);
   const [teamSubmissions, setTeamSubmissions] = useState([]);
@@ -162,7 +163,7 @@ export default function MCQRoundPage() {
   const handleSubmit = async () => {
     setIsLoading(true);
     let calculatedScore = 0;
-    
+
     mcqQuestions.forEach((q, idx) => {
       if (answers[idx] === q.correct_option) {
         calculatedScore++;
@@ -188,7 +189,7 @@ export default function MCQRoundPage() {
           }),
         });
         console.log("Score submitted successfully!");
-        
+
         // Refresh team scores after submission
         if (userTeam) {
           await fetchTeamScores(userTeam);
@@ -254,7 +255,7 @@ export default function MCQRoundPage() {
     const scoreNum = parseInt(score.split(' / ')[0]);
     const totalNum = parseInt(score.split(' / ')[1]);
     const percentage = Math.round((scoreNum / totalNum) * 100);
-    
+
     return (
       <div className="min-h-screen bg-[#2C3333] relative overflow-hidden">
         {/* Background pattern */}
@@ -262,7 +263,7 @@ export default function MCQRoundPage() {
           <div className="absolute top-20 left-20 w-72 h-72 bg-[#A5C9CA] rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute bottom-20 right-20 w-96 h-96 bg-[#395B64] rounded-full blur-3xl animate-pulse delay-1000"></div>
         </div>
-        
+
         <div className="relative max-w-6xl mx-auto px-6 py-20">
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Individual Score Card */}
@@ -313,9 +314,8 @@ export default function MCQRoundPage() {
                     {teamSubmissions.map((memberScore, index) => (
                       <div key={memberScore.id} className="bg-[#395B64]/20 rounded-lg p-4 flex justify-between items-center hover:bg-[#395B64]/30 transition-colors duration-300">
                         <div className="flex items-center space-x-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            memberScore.userEmail === user.email ? 'bg-[#A5C9CA]' : 'bg-[#395B64]'
-                          }`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${memberScore.userEmail === user.email ? 'bg-[#A5C9CA]' : 'bg-[#395B64]'
+                            }`}>
                             {memberScore.userEmail === user.email ? (
                               <Star className="w-4 h-4 text-[#2C3333]" />
                             ) : (
@@ -360,13 +360,13 @@ export default function MCQRoundPage() {
               {userTeam && ` Your team "${userTeam.name}" is now ready to compete!`}
             </p>
             <div className="flex gap-4 justify-center">
-              <button 
+              <button
                 onClick={() => window.location.href = "/"}
                 className="bg-[#A5C9CA] hover:bg-[#E7F6F2] text-[#2C3333] font-semibold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-[#A5C9CA]/30"
               >
                 Back to Dashboard
               </button>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="bg-[#395B64]/40 hover:bg-[#395B64]/60 text-[#E7F6F2] font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 border border-[#395B64] hover:border-[#A5C9CA]/50"
               >
@@ -406,7 +406,7 @@ export default function MCQRoundPage() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               {/* Timer */}
               <div className="flex items-center space-x-2 bg-[#395B64]/20 border border-[#395B64]/30 px-4 py-2 rounded-xl hover:border-[#A5C9CA]/50 hover:bg-[#395B64]/30 transition-all duration-300">
@@ -415,7 +415,7 @@ export default function MCQRoundPage() {
                   {formatTime(timeLeft)}
                 </span>
               </div>
-              
+
               {/* Team info or User info */}
               <div className="flex items-center space-x-2 bg-[#395B64]/20 border border-[#395B64]/30 px-4 py-2 rounded-xl hover:border-[#A5C9CA]/50 hover:bg-[#395B64]/30 transition-all duration-300">
                 {userTeam ? <Users className="w-5 h-5 text-[#A5C9CA]" /> : <User className="w-5 h-5 text-[#A5C9CA]" />}
@@ -484,11 +484,10 @@ export default function MCQRoundPage() {
                 </div>
                 <button
                   onClick={() => toggleFlag()}
-                  className={`p-2 rounded-lg transition-all duration-300 ${
-                    flaggedQuestions.has(currentQuestion)
+                  className={`p-2 rounded-lg transition-all duration-300 ${flaggedQuestions.has(currentQuestion)
                       ? 'bg-yellow-500 text-[#2C3333] shadow-lg hover:bg-yellow-400'
                       : 'bg-[#395B64]/40 text-yellow-400 hover:bg-yellow-500/20 hover:text-yellow-300'
-                  }`}
+                    }`}
                 >
                   <Flag className="w-5 h-5" />
                 </button>
@@ -510,18 +509,16 @@ export default function MCQRoundPage() {
                 <button
                   key={idx}
                   onClick={() => selectOption(idx)}
-                  className={`w-full text-left p-6 rounded-xl border-2 transition-all duration-500 transform hover:scale-[1.02] group ${
-                    answers[currentQuestion] === idx
+                  className={`w-full text-left p-6 rounded-xl border-2 transition-all duration-500 transform hover:scale-[1.02] group ${answers[currentQuestion] === idx
                       ? 'border-[#A5C9CA] bg-[#A5C9CA]/20 text-[#E7F6F2] shadow-lg shadow-[#A5C9CA]/25 hover:shadow-[#A5C9CA]/40'
                       : 'border-[#395B64] bg-[#395B64]/20 text-[#A5C9CA] hover:border-[#A5C9CA]/70 hover:bg-[#A5C9CA]/10 hover:text-[#E7F6F2]'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center space-x-4">
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${
-                      answers[currentQuestion] === idx 
-                        ? 'border-[#A5C9CA] bg-[#A5C9CA]' 
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${answers[currentQuestion] === idx
+                        ? 'border-[#A5C9CA] bg-[#A5C9CA]'
                         : 'border-[#395B64] group-hover:border-[#A5C9CA]'
-                    }`}>
+                      }`}>
                       {answers[currentQuestion] === idx && <CheckCircle className="w-4 h-4 text-[#2C3333]" />}
                     </div>
                     <div className="flex-1">
@@ -539,11 +536,10 @@ export default function MCQRoundPage() {
             <button
               onClick={prevQuestion}
               disabled={currentQuestion === 0}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                currentQuestion === 0
+              className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${currentQuestion === 0
                   ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
                   : 'bg-[#395B64]/40 text-[#E7F6F2] hover:bg-[#395B64]/60 border border-[#A5C9CA]/50 transform hover:scale-105'
-              }`}
+                }`}
             >
               <ChevronLeft className="w-5 h-5" />
               <span>Previous</span>
@@ -558,18 +554,23 @@ export default function MCQRoundPage() {
               </button>
             </div>
 
-            <button
-              onClick={nextQuestion}
-              disabled={currentQuestion === mcqQuestions.length - 1}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                currentQuestion === mcqQuestions.length - 1
-                  ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
-                  : 'bg-[#395B64]/40 text-[#E7F6F2] hover:bg-[#395B64]/60 border border-[#395B64]/30 hover:border-[#A5C9CA]/50 transform hover:scale-105'
-              }`}
-            >
-              <span>Next</span>
-              <ChevronRight className="w-5 h-5" />
-            </button>
+            {currentQuestion === mcqQuestions.length - 1 ? (
+              <button
+                onClick={handleSubmit} // You'll need to define this function
+                className="flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 bg-[#A5C9CA] hover:bg-[#E7F6F2] text-[#2C3333] shadow-lg hover:shadow-[#A5C9CA]/30 transform hover:scale-105"
+              >
+                <span>Submit</span>
+                <Check className="w-5 h-5" /> {/* You'll need to import Check from lucide-react */}
+              </button>
+            ) : (
+              <button
+                onClick={nextQuestion}
+                className="flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 bg-[#395B64]/40 text-[#E7F6F2] hover:bg-[#395B64]/60 border border-[#395B64]/30 hover:border-[#A5C9CA]/50 transform hover:scale-105"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -615,11 +616,10 @@ export default function MCQRoundPage() {
                   <button
                     key={idx}
                     onClick={() => goToQuestion(idx)}
-                    className={`w-12 h-12 rounded-lg border-2 font-bold transition-all duration-300 text-sm hover:scale-110 ${
-                      isCurrent 
+                    className={`w-12 h-12 rounded-lg border-2 font-bold transition-all duration-300 text-sm hover:scale-110 ${isCurrent
                         ? 'ring-2 ring-[#A5C9CA] ring-offset-2 ring-offset-[#2C3333] scale-110'
                         : ''
-                    } ${getStatusColor(status)}`}
+                      } ${getStatusColor(status)}`}
                   >
                     {idx + 1}
                   </button>
@@ -631,11 +631,10 @@ export default function MCQRoundPage() {
             <button
               onClick={handleSubmit}
               disabled={isLoading}
-              className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 ${
-                isLoading
+              className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 ${isLoading
                   ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
                   : 'bg-[#A5C9CA] hover:bg-[#E7F6F2] text-[#2C3333] shadow-lg hover:shadow-[#A5C9CA]/30 transform hover:scale-105'
-              }`}
+                }`}
             >
               {isLoading ? (
                 <>
