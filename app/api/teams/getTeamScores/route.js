@@ -16,7 +16,7 @@ export async function POST(req) {
 
   if (!userEmail) {
     return new Response(
-      JSON.stringify({ error: "User email is required" }), 
+      JSON.stringify({ error: "User email is required" }),
       { status: 400 }
     );
   }
@@ -37,11 +37,11 @@ export async function POST(req) {
 
     if (!team) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: "No team found for this user",
           submissions: [],
           combinedScore: 0
-        }), 
+        }),
         { status: 404 }
       );
     }
@@ -54,10 +54,21 @@ export async function POST(req) {
       userEmail: { $in: teamMembers }
     }).toArray();
 
-    // Calculate combined team score
-    const combinedScore = teamScores.reduce((total, score) => {
-      return total + (score.score || 0);
-    }, 0);
+    // Calculate combined team score (average if both submitted, otherwise sum)
+    let combinedScore = 0;
+    if (teamScores.length > 0) {
+      const totalScore = teamScores.reduce((total, score) => {
+        return total + (score.score || 0);
+      }, 0);
+      
+      // If both teammates have submitted, calculate average
+      if (teamScores.length === 2) {
+        combinedScore = totalScore / 2;
+      } else {
+        // If only one teammate has submitted, use their score
+        combinedScore = totalScore;
+      }
+    }
 
     // Transform scores data to match expected format
     const submissions = teamScores.map(score => ({
@@ -83,14 +94,14 @@ export async function POST(req) {
         combinedScore,
         totalMembers: teamMembers.length,
         submittedMembers: submissions.length
-      }), 
+      }),
       { status: 200 }
     );
 
   } catch (err) {
     console.error("Error fetching team scores:", err);
     return new Response(
-      JSON.stringify({ error: "Internal server error" }), 
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500 }
     );
   }
