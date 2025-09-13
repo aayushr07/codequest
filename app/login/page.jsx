@@ -18,7 +18,7 @@ export default function LoginPage() {
         setError("");
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            window.location.href = "/mcq-round";
+            window.location.href = "/";
         } catch (err) {
             setError(err.message);
         }
@@ -32,7 +32,7 @@ export default function LoginPage() {
         const provider = new GoogleAuthProvider();
         try {
             await signInWithPopup(auth, provider);
-            window.location.href = "/mcq-round";
+            window.location.href = "/";
         } catch (err) {
             setError(err.message);
         }
