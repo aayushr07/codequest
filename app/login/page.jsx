@@ -182,17 +182,7 @@ export default function LoginPage() {
                     </button>
 
                     {/* Footer */}
-                    <div className="mt-8 text-center">
-                        <p className="text-[#A5C9CA]/60 text-sm">
-                            Don't have an account?{" "}
-                            <a 
-                                href="/signup" 
-                                className="text-[#A5C9CA] hover:text-[#E7F6F2] font-medium transition-colors duration-200 hover:underline"
-                            >
-                                Sign up here
-                            </a>
-                        </p>
-                    </div>
+                    
                 </div>
 
                 {/* Additional Info */}
