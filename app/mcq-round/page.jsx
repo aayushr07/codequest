@@ -19,7 +19,8 @@ import {
   Users,
   Star,
   Check,
-  TrendingUp
+  TrendingUp,
+  AlertCircle
 } from "lucide-react";
 
 export default function MCQRoundPage() {
@@ -40,15 +41,20 @@ export default function MCQRoundPage() {
   const [combinedTeamScore, setCombinedTeamScore] = useState(0);
   const [loadingTeamData, setLoadingTeamData] = useState(true);
 
+  // New states for test already taken check
+  const [testAlreadyTaken, setTestAlreadyTaken] = useState(false);
+  const [userPreviousScore, setUserPreviousScore] = useState(null);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+
   // Timer effect
   useEffect(() => {
-    if (timeLeft > 0 && !submitted && user) {
+    if (timeLeft > 0 && !submitted && user && !testAlreadyTaken) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && !submitted && user) {
+    } else if (timeLeft === 0 && !submitted && user && !testAlreadyTaken) {
       handleSubmit();
     }
-  }, [timeLeft, submitted, user]);
+  }, [timeLeft, submitted, user, testAlreadyTaken]);
 
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
@@ -86,20 +92,51 @@ export default function MCQRoundPage() {
         const data = await response.json();
         if (data.team) {
           setUserTeam(data.team);
-          fetchTeamScores(data.team);
+          await fetchTeamScores(data.team, userEmail);
+        } else {
+          // No team found, check if user has taken test individually
+          await checkIndividualTestStatus(userEmail);
         }
       } else {
         console.error('Failed to fetch user team');
+        await checkIndividualTestStatus(userEmail);
       }
       setLoadingTeamData(false);
+      setInitialDataLoaded(true);
     } catch (error) {
       console.error("Error fetching user team:", error);
+      await checkIndividualTestStatus(userEmail);
       setLoadingTeamData(false);
+      setInitialDataLoaded(true);
+    }
+  };
+
+  // Check if individual user has already taken the test
+  const checkIndividualTestStatus = async (userEmail) => {
+    try {
+      const response = await fetch(`/api/submit-mcq?userEmail=${encodeURIComponent(userEmail)}`, {
+        method: 'GET',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.submission) {
+          setTestAlreadyTaken(true);
+          setUserPreviousScore(data.submission);
+          setSubmitted(true);
+          setScore(`${data.submission.score} / ${data.submission.totalQuestions}`);
+        }
+      } else if (response.status === 404) {
+        // No previous submission found, user can take the test
+        setTestAlreadyTaken(false);
+      }
+    } catch (error) {
+      console.error("Error checking individual test status:", error);
     }
   };
 
   // Fetch team scores from MongoDB
-  const fetchTeamScores = async (team) => {
+  const fetchTeamScores = async (team, userEmail) => {
     if (!team || !team.members) return;
 
     try {
@@ -108,13 +145,21 @@ export default function MCQRoundPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userEmail: user?.email || team.members[0] }),
+        body: JSON.stringify({ userEmail }),
       });
 
       if (response.ok) {
         const data = await response.json();
         setTeamSubmissions(data.submissions || []);
         setCombinedTeamScore(data.combinedScore || 0);
+        
+        // Check if current user has already taken the test
+        if (data.testAlreadyTaken && data.userPreviousScore) {
+          setTestAlreadyTaken(true);
+          setUserPreviousScore(data.userPreviousScore);
+          setSubmitted(true);
+          setScore(`${data.userPreviousScore.score} / ${data.userPreviousScore.totalQuestions}`);
+        }
       } else {
         console.error('Failed to fetch team scores');
       }
@@ -125,7 +170,7 @@ export default function MCQRoundPage() {
 
   // Navigation functions
   const goToQuestion = (questionIndex) => {
-    if (questionIndex >= 0 && questionIndex < mcqQuestions.length) {
+    if (questionIndex >= 0 && questionIndex < mcqQuestions.length && !testAlreadyTaken) {
       setCurrentQuestion(questionIndex);
       setVisitedQuestions(prev => new Set([...prev, questionIndex]));
       setShowQuestionPalette(false);
@@ -133,18 +178,19 @@ export default function MCQRoundPage() {
   };
 
   const nextQuestion = () => {
-    if (currentQuestion < mcqQuestions.length - 1) {
+    if (currentQuestion < mcqQuestions.length - 1 && !testAlreadyTaken) {
       goToQuestion(currentQuestion + 1);
     }
   };
 
   const prevQuestion = () => {
-    if (currentQuestion > 0) {
+    if (currentQuestion > 0 && !testAlreadyTaken) {
       goToQuestion(currentQuestion - 1);
     }
   };
 
   const toggleFlag = (questionIndex = currentQuestion) => {
+    if (testAlreadyTaken) return;
     const newFlagged = new Set(flaggedQuestions);
     if (newFlagged.has(questionIndex)) {
       newFlagged.delete(questionIndex);
@@ -155,12 +201,15 @@ export default function MCQRoundPage() {
   };
 
   const selectOption = (optionIndex) => {
+    if (testAlreadyTaken) return;
     const newAnswers = [...answers];
     newAnswers[currentQuestion] = optionIndex;
     setAnswers(newAnswers);
   };
 
   const handleSubmit = async () => {
+    if (testAlreadyTaken) return;
+    
     setIsLoading(true);
     let calculatedScore = 0;
 
@@ -175,7 +224,7 @@ export default function MCQRoundPage() {
 
     if (user) {
       try {
-        await fetch("/api/submit-mcq", {
+        const response = await fetch("/api/submit-mcq", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -188,11 +237,24 @@ export default function MCQRoundPage() {
             totalQuestions: mcqQuestions.length,
           }),
         });
-        console.log("Score submitted successfully!");
 
-        // Refresh team scores after submission
-        if (userTeam) {
-          await fetchTeamScores(userTeam);
+        const data = await response.json();
+
+        if (response.status === 409) {
+          // Test already submitted
+          alert("You have already submitted this test. Your previous score will be considered.");
+          setTestAlreadyTaken(true);
+          if (data.existingScore !== undefined) {
+            setScore(`${data.existingScore} / ${mcqQuestions.length}`);
+          }
+        } else if (response.ok) {
+          console.log("Score submitted successfully!");
+          // Refresh team scores after submission
+          if (userTeam) {
+            await fetchTeamScores(userTeam, user.email);
+          }
+        } else {
+          throw new Error(data.error || "Submission failed");
         }
       } catch (error) {
         console.error("Error submitting score:", error);
@@ -235,14 +297,14 @@ export default function MCQRoundPage() {
   const unvisitedCount = mcqQuestions.length - visitedCount;
 
   // Loading state
-  if (user === null || loadingTeamData) {
+  if (user === null || !initialDataLoaded) {
     return (
       <div className="min-h-screen bg-[#2C3333] flex items-center justify-center">
         <div className="bg-[#395B64]/20 backdrop-blur-sm border border-[#395B64]/30 rounded-xl p-8">
           <div className="flex items-center space-x-4">
             <div className="w-8 h-8 border-4 border-[#A5C9CA]/30 border-t-[#A5C9CA] rounded-full animate-spin"></div>
             <span className="text-[#E7F6F2] text-lg">
-              {!user ? "Authenticating..." : "Loading team data..."}
+              {!user ? "Authenticating..." : "Loading test data..."}
             </span>
           </div>
         </div>
@@ -250,7 +312,85 @@ export default function MCQRoundPage() {
     );
   }
 
-  // Results screen with team information
+  // Test Already Taken Screen
+  if (testAlreadyTaken && userPreviousScore) {
+    const scoreNum = userPreviousScore.score;
+    const totalNum = userPreviousScore.totalQuestions;
+    const percentage = Math.round((scoreNum / totalNum) * 100);
+    const submissionDate = new Date(userPreviousScore.submissionDate || userPreviousScore.submittedAt);
+
+    return (
+      <div className="min-h-screen bg-[#2C3333] relative overflow-hidden">
+        {/* Background pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-20 w-72 h-72 bg-[#A5C9CA] rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-[#395B64] rounded-full blur-3xl animate-pulse delay-1000"></div>
+        </div>
+
+        <div className="relative max-w-4xl mx-auto px-6 py-20">
+          <div className="bg-[#395B64]/20 backdrop-blur-sm border border-[#395B64]/30 rounded-2xl p-8 text-center hover:border-[#A5C9CA]/50 transition-all duration-500 hover:shadow-2xl hover:shadow-[#A5C9CA]/10">
+            <div className="w-32 h-32 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
+              <AlertCircle className="w-16 h-16 text-[#2C3333]" />
+            </div>
+            
+            <h1 className="text-5xl font-bold text-[#E7F6F2] mb-6">Test Already Completed!</h1>
+            <p className="text-[#A5C9CA]/80 text-lg mb-8">
+              You have already taken this MCQ test. Your submitted score will be considered for the competition.
+            </p>
+
+            {/* Previous Score Display */}
+            <div className="bg-[#395B64]/20 backdrop-blur-sm border border-[#395B64]/30 rounded-2xl p-6 mb-8">
+              <h2 className="text-2xl font-bold text-[#E7F6F2] mb-4">Your Previous Score</h2>
+              <div className="text-6xl font-bold text-[#A5C9CA] mb-4">
+                {scoreNum} / {totalNum}
+              </div>
+              <div className="text-2xl font-semibold text-[#E7F6F2]/80 mb-4">
+                {percentage}%
+              </div>
+              <div className="text-[#A5C9CA]/70 text-sm">
+                Submitted on: {submissionDate.toLocaleDateString()} at {submissionDate.toLocaleTimeString()}
+              </div>
+              
+              {userTeam && (
+                <div className="mt-4 pt-4 border-t border-[#395B64]/30">
+                  <div className="text-[#E7F6F2]/80 text-sm mb-2">Team: {userTeam.name}</div>
+                  <div className="text-[#A5C9CA] font-bold">Combined Team Score: {combinedTeamScore}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => window.location.href = "/"}
+                className="bg-[#A5C9CA] hover:bg-[#E7F6F2] text-[#2C3333] font-semibold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-[#A5C9CA]/30"
+              >
+                Back to Dashboard
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-[#395B64]/40 hover:bg-[#395B64]/60 text-[#E7F6F2] font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 border border-[#395B64] hover:border-[#A5C9CA]/50"
+              >
+                Logout
+              </button>
+            </div>
+
+            {/* Warning Message */}
+            <div className="mt-8 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-xl">
+              <div className="flex items-center justify-center space-x-2 text-yellow-400">
+                <AlertTriangle className="w-5 h-5" />
+                <span className="font-semibold text-sm">
+                  Only one attempt is allowed per participant. Your first submission is final.
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Results screen with team information (existing code remains the same)
   if (submitted && score) {
     const scoreNum = parseInt(score.split(' / ')[0]);
     const totalNum = parseInt(score.split(' / ')[1]);
@@ -484,7 +624,8 @@ export default function MCQRoundPage() {
                 </div>
                 <button
                   onClick={() => toggleFlag()}
-                  className={`p-2 rounded-lg transition-all duration-300 ${flaggedQuestions.has(currentQuestion)
+                  disabled={testAlreadyTaken}
+                  className={`p-2 rounded-lg transition-all duration-300 ${testAlreadyTaken ? 'opacity-50 cursor-not-allowed' : ''} ${flaggedQuestions.has(currentQuestion)
                       ? 'bg-yellow-500 text-[#2C3333] shadow-lg hover:bg-yellow-400'
                       : 'bg-[#395B64]/40 text-yellow-400 hover:bg-yellow-500/20 hover:text-yellow-300'
                     }`}
@@ -492,7 +633,7 @@ export default function MCQRoundPage() {
                   <Flag className="w-5 h-5" />
                 </button>
               </div>
-              {timeLeft < 600 && (
+              {timeLeft < 600 && !testAlreadyTaken && (
                 <div className="flex items-center space-x-2 text-red-400 animate-pulse">
                   <AlertTriangle className="w-5 h-5" />
                   <span className="text-sm font-semibold">Time running out!</span>
@@ -509,7 +650,8 @@ export default function MCQRoundPage() {
                 <button
                   key={idx}
                   onClick={() => selectOption(idx)}
-                  className={`w-full text-left p-6 rounded-xl border-2 transition-all duration-500 transform hover:scale-[1.02] group ${answers[currentQuestion] === idx
+                  disabled={testAlreadyTaken}
+                  className={`w-full text-left p-6 rounded-xl border-2 transition-all duration-500 transform ${testAlreadyTaken ? 'cursor-not-allowed opacity-50' : 'hover:scale-[1.02] group'} ${answers[currentQuestion] === idx
                       ? 'border-[#A5C9CA] bg-[#A5C9CA]/20 text-[#E7F6F2] shadow-lg shadow-[#A5C9CA]/25 hover:shadow-[#A5C9CA]/40'
                       : 'border-[#395B64] bg-[#395B64]/20 text-[#A5C9CA] hover:border-[#A5C9CA]/70 hover:bg-[#A5C9CA]/10 hover:text-[#E7F6F2]'
                     }`}
@@ -535,8 +677,8 @@ export default function MCQRoundPage() {
           <div className="flex justify-between items-center">
             <button
               onClick={prevQuestion}
-              disabled={currentQuestion === 0}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${currentQuestion === 0
+              disabled={currentQuestion === 0 || testAlreadyTaken}
+              className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${currentQuestion === 0 || testAlreadyTaken
                   ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
                   : 'bg-[#395B64]/40 text-[#E7F6F2] hover:bg-[#395B64]/60 border border-[#A5C9CA]/50 transform hover:scale-105'
                 }`}
@@ -556,16 +698,24 @@ export default function MCQRoundPage() {
 
             {currentQuestion === mcqQuestions.length - 1 ? (
               <button
-                onClick={handleSubmit} // You'll need to define this function
-                className="flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 bg-[#A5C9CA] hover:bg-[#E7F6F2] text-[#2C3333] shadow-lg hover:shadow-[#A5C9CA]/30 transform hover:scale-105"
+                onClick={handleSubmit}
+                disabled={testAlreadyTaken || isLoading}
+                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${testAlreadyTaken || isLoading
+                    ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
+                    : 'bg-[#A5C9CA] hover:bg-[#E7F6F2] text-[#2C3333] shadow-lg hover:shadow-[#A5C9CA]/30 transform hover:scale-105'
+                  }`}
               >
-                <span>Submit</span>
-                <Check className="w-5 h-5" /> {/* You'll need to import Check from lucide-react */}
+                <span>{isLoading ? 'Submitting...' : 'Submit'}</span>
+                <Check className="w-5 h-5" />
               </button>
             ) : (
               <button
                 onClick={nextQuestion}
-                className="flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 bg-[#395B64]/40 text-[#E7F6F2] hover:bg-[#395B64]/60 border border-[#395B64]/30 hover:border-[#A5C9CA]/50 transform hover:scale-105"
+                disabled={testAlreadyTaken}
+                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${testAlreadyTaken
+                    ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
+                    : 'bg-[#395B64]/40 text-[#E7F6F2] hover:bg-[#395B64]/60 border border-[#395B64]/30 hover:border-[#A5C9CA]/50 transform hover:scale-105'
+                  }`}
               >
                 <span>Next</span>
                 <ChevronRight className="w-5 h-5" />
@@ -616,7 +766,8 @@ export default function MCQRoundPage() {
                   <button
                     key={idx}
                     onClick={() => goToQuestion(idx)}
-                    className={`w-12 h-12 rounded-lg border-2 font-bold transition-all duration-300 text-sm hover:scale-110 ${isCurrent
+                    disabled={testAlreadyTaken}
+                    className={`w-12 h-12 rounded-lg border-2 font-bold transition-all duration-300 text-sm ${testAlreadyTaken ? 'cursor-not-allowed opacity-50' : 'hover:scale-110'} ${isCurrent
                         ? 'ring-2 ring-[#A5C9CA] ring-offset-2 ring-offset-[#2C3333] scale-110'
                         : ''
                       } ${getStatusColor(status)}`}
@@ -630,8 +781,8 @@ export default function MCQRoundPage() {
             {/* Submit Button */}
             <button
               onClick={handleSubmit}
-              disabled={isLoading}
-              className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 ${isLoading
+              disabled={isLoading || testAlreadyTaken}
+              className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 ${isLoading || testAlreadyTaken
                   ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
                   : 'bg-[#A5C9CA] hover:bg-[#E7F6F2] text-[#2C3333] shadow-lg hover:shadow-[#A5C9CA]/30 transform hover:scale-105'
                 }`}
@@ -643,14 +794,20 @@ export default function MCQRoundPage() {
                 </>
               ) : (
                 <>
-                  Submit Test
+                  {testAlreadyTaken ? 'Test Completed' : 'Submit Test'}
                 </>
               )}
             </button>
 
-            {answeredCount < mcqQuestions.length && !isLoading && (
+            {!testAlreadyTaken && answeredCount < mcqQuestions.length && !isLoading && (
               <p className="text-[#A5C9CA]/70 text-sm mt-3 text-center animate-pulse">
                 {mcqQuestions.length - answeredCount} questions remaining
+              </p>
+            )}
+
+            {testAlreadyTaken && (
+              <p className="text-yellow-400 text-sm mt-3 text-center">
+                Test already completed
               </p>
             )}
           </div>
