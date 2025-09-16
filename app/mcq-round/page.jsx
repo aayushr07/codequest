@@ -23,8 +23,35 @@ import {
   AlertCircle
 } from "lucide-react";
 
+// Utility functions for shuffling
+const shuffleArray = (array) => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+const shuffleQuestionOptions = (question) => {
+  const optionsWithIndex = question.options.map((option, index) => ({
+    option,
+    originalIndex: index
+  }));
+  
+  const shuffledOptions = shuffleArray(optionsWithIndex);
+  
+  return {
+    ...question,
+    options: shuffledOptions.map(item => item.option),
+    correct_option: shuffledOptions.findIndex(item => item.originalIndex === question.correct_option)
+  };
+};
+
+const TOTAL_QUESTIONS = 45; // Limit to 45 questions
+
 export default function MCQRoundPage() {
-  const [answers, setAnswers] = useState(new Array(mcqQuestions.length).fill(null));
+  const [answers, setAnswers] = useState(new Array(TOTAL_QUESTIONS).fill(null));
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [flaggedQuestions, setFlaggedQuestions] = useState(new Set());
   const [visitedQuestions, setVisitedQuestions] = useState(new Set([0]));
@@ -46,15 +73,41 @@ export default function MCQRoundPage() {
   const [userPreviousScore, setUserPreviousScore] = useState(null);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
 
+  // Shuffled questions state
+  const [shuffledQuestions, setShuffledQuestions] = useState([]);
+
+  // Initialize shuffled questions on component mount
+  useEffect(() => {
+    if (mcqQuestions && mcqQuestions.length > 0) {
+      // First shuffle all questions
+      const allShuffledQuestions = shuffleArray([...mcqQuestions]);
+      
+      // Take only the first TOTAL_QUESTIONS (45)
+      const selectedQuestions = allShuffledQuestions.slice(0, TOTAL_QUESTIONS);
+      
+      // Then shuffle options for each selected question
+      const questionsWithShuffledOptions = selectedQuestions.map(question => 
+        shuffleQuestionOptions(question)
+      );
+      
+      setShuffledQuestions(questionsWithShuffledOptions);
+      
+      // Reset answers array to match the new question count
+      setAnswers(new Array(TOTAL_QUESTIONS).fill(null));
+      
+      console.log(`Selected ${TOTAL_QUESTIONS} questions from ${mcqQuestions.length} total questions`);
+    }
+  }, []); // Only run once on mount
+
   // Timer effect
   useEffect(() => {
-    if (timeLeft > 0 && !submitted && user && !testAlreadyTaken) {
+    if (timeLeft > 0 && !submitted && user && !testAlreadyTaken && shuffledQuestions.length > 0) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && !submitted && user && !testAlreadyTaken) {
+    } else if (timeLeft === 0 && !submitted && user && !testAlreadyTaken && shuffledQuestions.length > 0) {
       handleSubmit();
     }
-  }, [timeLeft, submitted, user, testAlreadyTaken]);
+  }, [timeLeft, submitted, user, testAlreadyTaken, shuffledQuestions.length]);
 
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
@@ -152,7 +205,7 @@ export default function MCQRoundPage() {
         const data = await response.json();
         setTeamSubmissions(data.submissions || []);
         setCombinedTeamScore(data.combinedScore || 0);
-        
+
         // Check if current user has already taken the test
         if (data.testAlreadyTaken && data.userPreviousScore) {
           setTestAlreadyTaken(true);
@@ -170,7 +223,7 @@ export default function MCQRoundPage() {
 
   // Navigation functions
   const goToQuestion = (questionIndex) => {
-    if (questionIndex >= 0 && questionIndex < mcqQuestions.length && !testAlreadyTaken) {
+    if (questionIndex >= 0 && questionIndex < TOTAL_QUESTIONS && !testAlreadyTaken) {
       setCurrentQuestion(questionIndex);
       setVisitedQuestions(prev => new Set([...prev, questionIndex]));
       setShowQuestionPalette(false);
@@ -178,7 +231,7 @@ export default function MCQRoundPage() {
   };
 
   const nextQuestion = () => {
-    if (currentQuestion < mcqQuestions.length - 1 && !testAlreadyTaken) {
+    if (currentQuestion < TOTAL_QUESTIONS - 1 && !testAlreadyTaken) {
       goToQuestion(currentQuestion + 1);
     }
   };
@@ -208,18 +261,19 @@ export default function MCQRoundPage() {
   };
 
   const handleSubmit = async () => {
-    if (testAlreadyTaken) return;
-    
+    if (testAlreadyTaken || shuffledQuestions.length === 0) return;
+
     setIsLoading(true);
     let calculatedScore = 0;
 
-    mcqQuestions.forEach((q, idx) => {
+    // Calculate score using shuffled questions
+    shuffledQuestions.forEach((q, idx) => {
       if (answers[idx] === q.correct_option) {
         calculatedScore++;
       }
     });
 
-    setScore(`${calculatedScore} / ${mcqQuestions.length}`);
+    setScore(`${calculatedScore} / ${TOTAL_QUESTIONS}`);
     setSubmitted(true);
 
     if (user) {
@@ -234,7 +288,8 @@ export default function MCQRoundPage() {
             teamName: userTeam?.name || null,
             answers,
             score: calculatedScore,
-            totalQuestions: mcqQuestions.length,
+            totalQuestions: TOTAL_QUESTIONS,
+            questionsUsed: shuffledQuestions // Store the specific questions used
           }),
         });
 
@@ -245,7 +300,7 @@ export default function MCQRoundPage() {
           alert("You have already submitted this test. Your previous score will be considered.");
           setTestAlreadyTaken(true);
           if (data.existingScore !== undefined) {
-            setScore(`${data.existingScore} / ${mcqQuestions.length}`);
+            setScore(`${data.existingScore} / ${TOTAL_QUESTIONS}`);
           }
         } else if (response.ok) {
           console.log("Score submitted successfully!");
@@ -294,17 +349,17 @@ export default function MCQRoundPage() {
   const answeredCount = answers.filter(a => a !== null).length;
   const flaggedCount = flaggedQuestions.size;
   const visitedCount = visitedQuestions.size;
-  const unvisitedCount = mcqQuestions.length - visitedCount;
+  const unvisitedCount = TOTAL_QUESTIONS - visitedCount;
 
-  // Loading state
-  if (user === null || !initialDataLoaded) {
+  // Loading state - wait for both user auth and questions to be ready
+  if (user === null || !initialDataLoaded || shuffledQuestions.length === 0) {
     return (
       <div className="min-h-screen bg-[#2C3333] flex items-center justify-center">
         <div className="bg-[#395B64]/20 backdrop-blur-sm border border-[#395B64]/30 rounded-xl p-8">
           <div className="flex items-center space-x-4">
             <div className="w-8 h-8 border-4 border-[#A5C9CA]/30 border-t-[#A5C9CA] rounded-full animate-spin"></div>
             <span className="text-[#E7F6F2] text-lg">
-              {!user ? "Authenticating..." : "Loading test data..."}
+              {!user ? "Authenticating..." : shuffledQuestions.length === 0 ? "Preparing questions..." : "Loading test data..."}
             </span>
           </div>
         </div>
@@ -332,7 +387,7 @@ export default function MCQRoundPage() {
             <div className="w-32 h-32 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
               <AlertCircle className="w-16 h-16 text-[#2C3333]" />
             </div>
-            
+
             <h1 className="text-5xl font-bold text-[#E7F6F2] mb-6">Test Already Completed!</h1>
             <p className="text-[#A5C9CA]/80 text-lg mb-8">
               You have already taken this MCQ test. Your submitted score will be considered for the competition.
@@ -350,7 +405,7 @@ export default function MCQRoundPage() {
               <div className="text-[#A5C9CA]/70 text-sm">
                 Submitted on: {submissionDate.toLocaleDateString()} at {submissionDate.toLocaleTimeString()}
               </div>
-              
+
               {userTeam && (
                 <div className="mt-4 pt-4 border-t border-[#395B64]/30">
                   <div className="text-[#E7F6F2]/80 text-sm mb-2">Team: {userTeam.name}</div>
@@ -495,9 +550,12 @@ export default function MCQRoundPage() {
               <Trophy className="w-16 h-16 text-[#2C3333]" />
             </div>
             <h1 className="text-5xl font-bold text-[#E7F6F2] mb-6">Excellent Work!</h1>
-            <p className="text-[#A5C9CA]/80 text-lg mb-8">
+            <p className="text-[#A5C9CA]/80 text-lg mb-4">
               Great job completing the MCQ round, {user.email}!
               {userTeam && ` Your team "${userTeam.name}" is now ready to compete!`}
+            </p>
+            <p className="text-[#E7F6F2]/60 text-sm mb-8">
+              You answered {TOTAL_QUESTIONS} randomized questions selected from our question bank.
             </p>
             <div className="flex gap-4 justify-center">
               <button
@@ -519,7 +577,20 @@ export default function MCQRoundPage() {
     );
   }
 
-  const currentQ = mcqQuestions[currentQuestion];
+  if (!shuffledQuestions[currentQuestion]) {
+    return (
+      <div className="min-h-screen bg-[#2C3333] flex items-center justify-center">
+        <div className="bg-[#395B64]/20 backdrop-blur-sm border border-[#395B64]/30 rounded-xl p-8">
+          <div className="flex items-center space-x-4">
+            <div className="w-8 h-8 border-4 border-[#A5C9CA]/30 border-t-[#A5C9CA] rounded-full animate-spin"></div>
+            <span className="text-[#E7F6F2] text-lg">Loading question...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentQ = shuffledQuestions[currentQuestion];
 
   return (
     <div className="min-h-screen bg-[#2C3333] relative overflow-hidden">
@@ -541,7 +612,7 @@ export default function MCQRoundPage() {
               <div>
                 <h1 className="text-2xl font-bold text-[#E7F6F2]">MCQ Assessment</h1>
                 <p className="text-[#A5C9CA]/80 text-sm">
-                  Question {currentQuestion + 1} of {mcqQuestions.length}
+                  Question {currentQuestion + 1} of {TOTAL_QUESTIONS}
                   {userTeam && ` • Team: ${userTeam.name}`}
                 </p>
               </div>
@@ -588,12 +659,18 @@ export default function MCQRoundPage() {
           <div className="bg-[#395B64]/20 backdrop-blur-sm border border-[#395B64]/30 rounded-2xl p-6 mb-6 hover:border-[#A5C9CA]/50 hover:bg-[#395B64]/30 transition-all duration-500 hover:shadow-lg hover:shadow-[#A5C9CA]/10">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-[#E7F6F2]">Progress Overview</h3>
-              {userTeam && (
-                <div className="flex items-center space-x-2 bg-yellow-500/20 px-3 py-1 rounded-full border border-yellow-500/30">
-                  <Users className="w-4 h-4 text-yellow-400" />
-                  <span className="text-yellow-400 text-sm font-medium">{userTeam.name}</span>
+              <div className="flex items-center space-x-2">
+                {userTeam && (
+                  <div className="flex items-center space-x-2 bg-yellow-500/20 px-3 py-1 rounded-full border border-yellow-500/30">
+                    <Users className="w-4 h-4 text-yellow-400" />
+                    <span className="text-yellow-400 text-sm font-medium">{userTeam.name}</span>
+                  </div>
+                )}
+                <div className="flex items-center space-x-2 bg-[#A5C9CA]/20 px-3 py-1 rounded-full border border-[#A5C9CA]/30">
+                  <Target className="w-4 h-4 text-[#A5C9CA]" />
+                  <span className="text-[#A5C9CA] text-sm font-medium">{TOTAL_QUESTIONS} Questions</span>
                 </div>
-              )}
+              </div>
             </div>
             <div className="grid grid-cols-4 gap-4">
               <div className="text-center">
@@ -626,8 +703,8 @@ export default function MCQRoundPage() {
                   onClick={() => toggleFlag()}
                   disabled={testAlreadyTaken}
                   className={`p-2 rounded-lg transition-all duration-300 ${testAlreadyTaken ? 'opacity-50 cursor-not-allowed' : ''} ${flaggedQuestions.has(currentQuestion)
-                      ? 'bg-yellow-500 text-[#2C3333] shadow-lg hover:bg-yellow-400'
-                      : 'bg-[#395B64]/40 text-yellow-400 hover:bg-yellow-500/20 hover:text-yellow-300'
+                    ? 'bg-yellow-500 text-[#2C3333] shadow-lg hover:bg-yellow-400'
+                    : 'bg-[#395B64]/40 text-yellow-400 hover:bg-yellow-500/20 hover:text-yellow-300'
                     }`}
                 >
                   <Flag className="w-5 h-5" />
@@ -652,14 +729,14 @@ export default function MCQRoundPage() {
                   onClick={() => selectOption(idx)}
                   disabled={testAlreadyTaken}
                   className={`w-full text-left p-6 rounded-xl border-2 transition-all duration-500 transform ${testAlreadyTaken ? 'cursor-not-allowed opacity-50' : 'hover:scale-[1.02] group'} ${answers[currentQuestion] === idx
-                      ? 'border-[#A5C9CA] bg-[#A5C9CA]/20 text-[#E7F6F2] shadow-lg shadow-[#A5C9CA]/25 hover:shadow-[#A5C9CA]/40'
-                      : 'border-[#395B64] bg-[#395B64]/20 text-[#A5C9CA] hover:border-[#A5C9CA]/70 hover:bg-[#A5C9CA]/10 hover:text-[#E7F6F2]'
+                    ? 'border-[#A5C9CA] bg-[#A5C9CA]/20 text-[#E7F6F2] shadow-lg shadow-[#A5C9CA]/25 hover:shadow-[#A5C9CA]/40'
+                    : 'border-[#395B64] bg-[#395B64]/20 text-[#A5C9CA] hover:border-[#A5C9CA]/70 hover:bg-[#A5C9CA]/10 hover:text-[#E7F6F2]'
                     }`}
                 >
                   <div className="flex items-center space-x-4">
                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${answers[currentQuestion] === idx
-                        ? 'border-[#A5C9CA] bg-[#A5C9CA]'
-                        : 'border-[#395B64] group-hover:border-[#A5C9CA]'
+                      ? 'border-[#A5C9CA] bg-[#A5C9CA]'
+                      : 'border-[#395B64] group-hover:border-[#A5C9CA]'
                       }`}>
                       {answers[currentQuestion] === idx && <CheckCircle className="w-4 h-4 text-[#2C3333]" />}
                     </div>
@@ -679,8 +756,8 @@ export default function MCQRoundPage() {
               onClick={prevQuestion}
               disabled={currentQuestion === 0 || testAlreadyTaken}
               className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${currentQuestion === 0 || testAlreadyTaken
-                  ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
-                  : 'bg-[#395B64]/40 text-[#E7F6F2] hover:bg-[#395B64]/60 border border-[#A5C9CA]/50 transform hover:scale-105'
+                ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
+                : 'bg-[#395B64]/40 text-[#E7F6F2] hover:bg-[#395B64]/60 border border-[#A5C9CA]/50 transform hover:scale-105'
                 }`}
             >
               <ChevronLeft className="w-5 h-5" />
@@ -696,13 +773,13 @@ export default function MCQRoundPage() {
               </button>
             </div>
 
-            {currentQuestion === mcqQuestions.length - 1 ? (
+            {currentQuestion === TOTAL_QUESTIONS - 1 ? (
               <button
                 onClick={handleSubmit}
                 disabled={testAlreadyTaken || isLoading}
                 className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${testAlreadyTaken || isLoading
-                    ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
-                    : 'bg-[#A5C9CA] hover:bg-[#E7F6F2] text-[#2C3333] shadow-lg hover:shadow-[#A5C9CA]/30 transform hover:scale-105'
+                  ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
+                  : 'bg-[#A5C9CA] hover:bg-[#E7F6F2] text-[#2C3333] shadow-lg hover:shadow-[#A5C9CA]/30 transform hover:scale-105'
                   }`}
               >
                 <span>{isLoading ? 'Submitting...' : 'Submit'}</span>
@@ -713,8 +790,8 @@ export default function MCQRoundPage() {
                 onClick={nextQuestion}
                 disabled={testAlreadyTaken}
                 className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${testAlreadyTaken
-                    ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
-                    : 'bg-[#395B64]/40 text-[#E7F6F2] hover:bg-[#395B64]/60 border border-[#395B64]/30 hover:border-[#A5C9CA]/50 transform hover:scale-105'
+                  ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
+                  : 'bg-[#395B64]/40 text-[#E7F6F2] hover:bg-[#395B64]/60 border border-[#395B64]/30 hover:border-[#A5C9CA]/50 transform hover:scale-105'
                   }`}
               >
                 <span>Next</span>
@@ -759,7 +836,7 @@ export default function MCQRoundPage() {
 
             {/* Question Grid */}
             <div className="grid grid-cols-5 gap-2 mb-6">
-              {mcqQuestions.map((_, idx) => {
+              {Array.from({ length: TOTAL_QUESTIONS }, (_, idx) => {
                 const status = getQuestionStatus(idx);
                 const isCurrent = idx === currentQuestion;
                 return (
@@ -768,8 +845,8 @@ export default function MCQRoundPage() {
                     onClick={() => goToQuestion(idx)}
                     disabled={testAlreadyTaken}
                     className={`w-12 h-12 rounded-lg border-2 font-bold transition-all duration-300 text-sm ${testAlreadyTaken ? 'cursor-not-allowed opacity-50' : 'hover:scale-110'} ${isCurrent
-                        ? 'ring-2 ring-[#A5C9CA] ring-offset-2 ring-offset-[#2C3333] scale-110'
-                        : ''
+                      ? 'ring-2 ring-[#A5C9CA] ring-offset-2 ring-offset-[#2C3333] scale-110'
+                      : ''
                       } ${getStatusColor(status)}`}
                   >
                     {idx + 1}
@@ -783,8 +860,8 @@ export default function MCQRoundPage() {
               onClick={handleSubmit}
               disabled={isLoading || testAlreadyTaken}
               className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 ${isLoading || testAlreadyTaken
-                  ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
-                  : 'bg-[#A5C9CA] hover:bg-[#E7F6F2] text-[#2C3333] shadow-lg hover:shadow-[#A5C9CA]/30 transform hover:scale-105'
+                ? 'bg-[#395B64]/30 text-[#A5C9CA]/50 cursor-not-allowed'
+                : 'bg-[#A5C9CA] hover:bg-[#E7F6F2] text-[#2C3333] shadow-lg hover:shadow-[#A5C9CA]/30 transform hover:scale-105'
                 }`}
             >
               {isLoading ? (
@@ -799,9 +876,9 @@ export default function MCQRoundPage() {
               )}
             </button>
 
-            {!testAlreadyTaken && answeredCount < mcqQuestions.length && !isLoading && (
+            {!testAlreadyTaken && answeredCount < TOTAL_QUESTIONS && !isLoading && (
               <p className="text-[#A5C9CA]/70 text-sm mt-3 text-center animate-pulse">
-                {mcqQuestions.length - answeredCount} questions remaining
+                {TOTAL_QUESTIONS - answeredCount} questions remaining
               </p>
             )}
 
@@ -810,6 +887,13 @@ export default function MCQRoundPage() {
                 Test already completed
               </p>
             )}
+
+            {/* Shuffle Info */}
+            <div className="mt-4 p-3 bg-[#A5C9CA]/10 border border-[#A5C9CA]/20 rounded-lg">
+              <p className="text-[#A5C9CA]/80 text-xs text-center">
+                Questions and options are randomized for each participant
+              </p>
+            </div>
           </div>
         )}
       </div>
