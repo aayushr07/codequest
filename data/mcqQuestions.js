@@ -445,5 +445,175 @@ export const mcqQuestions = [
       "Present multiple scenarios without recommending one"
     ],
     correct_option: 1,
+  },
+  {
+    question: `What is the output of the factorial function in Python?\n\n\`\`\`python\ndef f(x): return x if x == 1 else x * f(x - 1)\nprint(f(5))\`\`\``,
+    options: ["20", "120", "24", "5"],
+    correct_option: 1
+  },
+  {
+    question: "Which data structure is used to implement recursion?",
+    options: ["Stack", "Queue", "List", "Array"],
+    correct_option: 0
+  },
+  {
+    question: `What will this C++ code print?\n\n\`\`\`cpp\nint x = 5;\ncout << x++ << " " << ++x;\`\`\``,
+    options: ["5 7", "6 7", "6 6", "7 7"],
+    correct_option: 0
+  },
+  {
+    question: "Which statement is correct about arrays in C?",
+    options: [
+      "Arrays cannot be passed to functions",
+      "Array size can be changed dynamically",
+      "Array elements are stored in contiguous memory",
+      "Array can store multiple data types"
+    ],
+    correct_option: 2
+  },
+  {
+    question: "Choose the correct syntax to declare a 2D array in C:",
+    options: ["int arr[2,3];", "int arr;", "int arr;", "Both B and C"],
+    correct_option: 3
+  },
+  {
+    question: `What will be the output of this Java code?\n\n\`\`\`java\nString x = "abc";\nString y = x;\nx += "d";\nSystem.out.print(y);\`\`\``,
+    options: ["abc", "abcd", "abd", "d"],
+    correct_option: 0
+  },
+  {
+    question: "Which of these is NOT a valid C++ identifier?",
+    options: ["_temp", "1stValue", "value_2", "$amount"],
+    correct_option: 1
+  },
+  {
+    question: "What is the correct way to swap two variables in C using pointers?",
+    options: [
+      "int temp = *a; *a = *b; *b = temp;",
+      "int temp = a; a = b; b = temp;",
+      "swap(a,b);",
+      "int temp = &a; &a = &b; &b = temp;"
+    ],
+    correct_option: 0
+  },
+  {
+    question: "What does the sizeof operator return in C?",
+    options: [
+      "Size of variable value",
+      "Size of variable address",
+      "Size of data type in bytes",
+      "None of above"
+    ],
+    correct_option: 2
+  },
+  {
+    question: `What is the output of this C code snippet?\n\n\`\`\`c\nint a = 5;\nprintf("%d", a++ + ++a);\`\`\``,
+    options: ["10", "12", "11", "Undefined behavior"],
+    correct_option: 1
+  },
+  {
+    question: "Which data structure is primarily used for BFS on a graph?",
+    options: ["Stack", "Queue", "Array", "Tree"],
+    correct_option: 1
+  },
+  {
+    question: "What is the average case time complexity of QuickSort?",
+    options: ["O(n^2)", "O(nlogn)", "O(n)", "O(logn)"],
+    correct_option: 1
+  },
+  {
+    question: "What traversal method is used for DFS?",
+    options: ["Level Order", "Postorder", "Preorder", "Stack based traversal"],
+    correct_option: 3
+  },
+  {
+    question: "What sorting algorithm is stable and uses divide and conquer?",
+    options: ["Merge Sort", "QuickSort", "Heap Sort", "Selection Sort"],
+    correct_option: 0
+  },
+  {
+    question: "Which method finds shortest path in graph with negative edges but no cycle?",
+    options: ["Dijkstra", "Bellman-Ford", "Floyd-Warshall", "BFS"],
+    correct_option: 1
+  },
+  {
+    question: "Which data structure provides O(1) average insertions, deletions and search?",
+    options: ["Linked List", "Binary Search Tree", "Hash Table", "Heap"],
+    correct_option: 2
+  },
+  {
+    question: "Choose the correct way to allocate memory dynamically in C:",
+    options: ["malloc(size)", "calloc(count, size)", "Both A and B", "new Object()"],
+    correct_option: 2
+  },
+  {
+    question: "Which of the following is NOT a feature of Object Oriented Programming?",
+    options: ["Inheritance", "Polymorphism", "Execution speed", "Encapsulation"],
+    correct_option: 2
+  },
+  {
+    question: `What is the output of this Python code?\n\n\`\`\`python\nprint(type([1,2,3]))\`\`\``,
+    options: ["<list>", "<class 'list'>", "list", "type"],
+    correct_option: 1
+  },
+  {
+    question: "What is the correct syntax for a conditional operator in C?",
+    options: ["x if y else z", "y ? x : z", "x ? y : z", "y ? z : x"],
+    correct_option: 1
+  },
+  {
+    question: "Which of these is false about pointers in C?",
+    options: [
+      "They store memory addresses",
+      "They can be dereferenced",
+      "Pointers arithmetic is possible",
+      "Pointer size is equal to variable size they point to"
+    ],
+    correct_option: 3
+  },
+  {
+    question: "What does break do in loops?",
+    options: ["Skip current iteration", "Exit from loop", "Exit from current function", "Pause loop"],
+    correct_option: 1
+  },
+  {
+    question: `Choose the correct function signature to swap integers by pointer in C:\n\n\`\`\`c\nvoid swap(int *a, int *b);\`\`\``,
+    options: ["Correct", "Incorrect"],
+    correct_option: 0
+  },
+  {
+    question: "What is the time complexity of searching an element in balanced BST?",
+    options: ["O(n)", "O(logn)", "O(1)", "O(nlogn)"],
+    correct_option: 1
+  },
+  {
+    question: "What data structure uses FIFO principle?",
+    options: ["Queue", "Stack", "Tree", "Graph"],
+    correct_option: 0
+  },
+  {
+    question: "Which one is NOT a linear data structure?",
+    options: ["Array", "Linked List", "Binary Tree", "Queue"],
+    correct_option: 2
+  },
+  {
+    question: "In Python, which of these is mutable?",
+    options: ["String", "List", "Tuple", "Int"],
+    correct_option: 1
+  },
+  {
+    question: "Which of the following Python collections supports key-value pairs?",
+    options: ["List", "Tuple", "Dictionary", "Set"],
+    correct_option: 2
+  },
+  {
+    question: "Which symbol is used for comments in Python?",
+    options: ["//", "#", "<!-- -->", "/* */"],
+    correct_option: 1
+  },
+  {
+    question: `What is the output of this code snippet?\n\n\`\`\`c\nint n = 5;\nfor(int i=1; i<=n; i++){\n   printf("%d ", i*i);\n}\`\`\``,
+    options: ["1 4 9 16 25", "1 2 3 4 5", "Error", "None"],
+    correct_option: 0
   }
 ];
